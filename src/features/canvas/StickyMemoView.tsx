@@ -268,8 +268,8 @@ const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDrag
 
     const wrapperStyle: React.CSSProperties = {
         position: "absolute", overflow: "visible", zIndex: zIndex(selected),
-        left: `${currentRectangle.left + moving.x + DRAWABLE_AREA.height / 2}px`,
-        top: `${currentRectangle.top + moving.y + DRAWABLE_AREA.width / 2}px`,
+        left: `${currentRectangle.left + moving.x + DRAWABLE_AREA.width / 2}px`,
+        top: `${currentRectangle.top + moving.y + DRAWABLE_AREA.height / 2}px`,
         display: "flex", flexDirection: "column", justifyContent: "flex-start",
         boxShadow: selected ? "" : "0px 0px 7px 0px #bebebe",
         // "&::-webkit-scrollbar": { display: "none" },
