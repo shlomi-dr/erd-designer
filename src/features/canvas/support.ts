@@ -1,3 +1,5 @@
+import React from "react";
+
 import { DragState } from "~/context/DragActionContext";
 import { SelectState } from "~/context/SelectEntityContext";
 
@@ -6,9 +8,7 @@ import { OrthogonalDirection } from "~/models/LineViewModel";
 import RectangleViewModel from "~/models/RectangleViewModel";
 import RelationViewModel from "~/models/RelationViewModel";
 
-export const CANVAS_AREA = { width: 25000, height: 25000 } as const;
-// 描画領域は CANVAS_AREA を下に、最大拡大率を表示しうるサイズにする
-export const DRAWABLE_AREA = { width: CANVAS_AREA.width * 2, height: CANVAS_AREA.height * 2 } as const;
+export type Point = { x: number, y: number };
 
 /**
  * ブラウザおよび WebView いずれで実行されている場合も適切なスクロール位置を取得する。
@@ -20,31 +20,6 @@ export const getScroll = () => {
     const scrollY = document.documentElement.scrollTop || document.body.scrollTop || window.scrollY || 0;
 
     return { scrollX, scrollY };
-};
-
-/**
- * displayScale の表示拡大率を無視した、論理的な点座標を取得する。
- * なお、論理的な点座標とは、キャンバス中央を (0, 0) とした座標を指す。
- * 
- * @param event マウスイベント
- * @param displayScale 表示拡大率
- * @returns 
- */
-export const getLogicalMousePosition = (event: React.MouseEvent | MouseEvent, displayScale: number) => {
-    const { scrollX, scrollY } = getScroll();
-    
-    const logicalPosition = {
-        x: (event.clientX + scrollX - DRAWABLE_AREA.width / 2) / displayScale,
-        y: (event.clientY + scrollY - DRAWABLE_AREA.height / 2) / displayScale
-    };
-
-    const validatedX = Math.min(Math.max(CANVAS_AREA.width * (-1) / 2, logicalPosition.x), CANVAS_AREA.width / 2);
-    const validatedY = Math.min(Math.max(CANVAS_AREA.height * (-1) / 2, logicalPosition.y), CANVAS_AREA.height / 2);
-
-    return {
-        x: Math.floor(validatedX * 100) / 100,
-        y: Math.floor(validatedY * 100) / 100
-    };
 };
 
 export const handlePreventMouseEvent = (event: React.MouseEvent) => event.stopPropagation();
@@ -80,8 +55,6 @@ type ToOrthogonalPointsArgs = {
     parentTable: RectangleViewModel,
     childTable: RectangleViewModel
 };
-
-type Point = { x: number, y: number };
 
 export const toOrthogonalPoints = (
     { orthogonalLines, parentTable, childTable }: ToOrthogonalPointsArgs

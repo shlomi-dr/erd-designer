@@ -6,9 +6,9 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
+import ViewportContext from "~/context/ViewportContext";
 import {
-    DRAWABLE_AREA, getLogicalMousePosition, handlePreventMouseEvent, ORTHOGONAL_THRESHOLD,
-    toDraggedOrthogonalPoints, toMarkerId, toOrthogonalPoints
+    ORTHOGONAL_THRESHOLD, handlePreventMouseEvent, toDraggedOrthogonalPoints, toMarkerId, toOrthogonalPoints
 } from "~/features/canvas/support";
 import RelationModel from "~/models/database/RelationModel";
 import RectangleViewModel from "~/models/RectangleViewModel";
@@ -48,6 +48,7 @@ const ErdRelationPathView = ({ relationViews, rectangleMap, onEditAction, onDrag
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
     const displayScale = React.useContext(DisplayScaleContext);
+    const viewport = React.useContext(ViewportContext);
 
     const [clickedPosition, setClickedPosition] = React.useState<{ x: number, y: number }>({ x: 0, y: 0 });
     const [deletingRelation, setDeletingRelation] = React.useState<RelationViewModel | null>(null);
@@ -172,14 +173,16 @@ const ErdRelationPathView = ({ relationViews, rectangleMap, onEditAction, onDrag
             );
         })();
 
+        const viewportPosition = viewport.toViewportPoint(clickedPosition);
+
         return (
             <ButtonGroup key={`relation-line_${relationView.relationId}_tooltip`}
                 variant="contained" size="small"
                 onMouseDown={handlePreventMouseEvent} onMouseUp={handlePreventMouseEvent}
                 sx={{
                     position: "absolute",
-                    left: clickedPosition.x * displayScale + 15 + DRAWABLE_AREA.width / 2,
-                    top: clickedPosition.y * displayScale - 45 + DRAWABLE_AREA.height / 2,
+                    left: viewportPosition.x * displayScale + 15,
+                    top: viewportPosition.y * displayScale - 45,
                     backgroundColor: "#FFFFFF"
                 }}>
                 <ColorSelector key={`relation-color-selector_${relationView.relationId}`}
@@ -263,7 +266,7 @@ const useStraightLineView = (
     const { editMode } = React.useContext(EditModeContext);
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
-    const displayScale = React.useContext(DisplayScaleContext);
+    const viewport = React.useContext(ViewportContext);
 
     const [lineDragging, setLineDragging] = React.useState<LineDragging>({ on_dragging: false });
 
@@ -359,7 +362,8 @@ const useStraightLineView = (
         const svgPaths = (svgRemoveEdgePath != null)
             ? [...svgBasePaths, ...svgEdges, svgRemoveEdgePath] : [...svgBasePaths, ...svgEdges];
 
-        const drawingPath = `M ${parentEdge.x + DRAWABLE_AREA.width / 2},${parentEdge.y + DRAWABLE_AREA.height / 2}`
+        const viewportEdge = viewport.toViewportPoint(parentEdge);
+        const drawingPath = `M ${viewportEdge.x},${viewportEdge.y}`
             + relationLineSegments.map(lineSegment => lineSegment.drawingLine).join(" ");
 
         return { svgPaths, drawingPath };
@@ -379,7 +383,7 @@ const useStraightLineView = (
 
             event.stopPropagation();
 
-            const mousePosition = getLogicalMousePosition(event, displayScale);
+            const mousePosition = viewport.toLogicalPoint(event);
 
             dispatchSelectAction({
                 type: "edge",
@@ -418,7 +422,7 @@ const useStraightLineView = (
 
             event.stopPropagation();
 
-            const mousePosition = getLogicalMousePosition(event, displayScale);
+            const mousePosition = viewport.toLogicalPoint(event);
             setClickedPosition(mousePosition);
 
             setLineDragging({ on_dragging: false });
@@ -434,8 +438,9 @@ const useStraightLineView = (
             handleOpenEditDialog(event, relationView)
         };
 
-        const line = `M ${pair[0].x + DRAWABLE_AREA.width / 2},${pair[0].y + DRAWABLE_AREA.height / 2}`
-            + ` L ${pair[1].x + DRAWABLE_AREA.width / 2},${pair[1].y + DRAWABLE_AREA.height / 2}`;
+        const start = viewport.toViewportPoint(pair[0]);
+        const end = viewport.toViewportPoint(pair[1]);
+        const line = `M ${start.x},${start.y}` + ` L ${end.x},${end.y}`;
 
         return (
             <path key={`relation-line_${relationView.relationId}_path-${index}`}
@@ -463,20 +468,24 @@ const useStraightLineView = (
                 && (index < relationView.lineViewModel.edges.length)
             ) ? dragState.delta() : { x: 0, y: 0 };
 
-            return `L ${pair[1].x + delta.x + DRAWABLE_AREA.width / 2},${pair[1].y + delta.y + DRAWABLE_AREA.height / 2}`;
+            const next = viewport.toViewportPoint({ x: pair[1].x + delta.x, y: pair[1].y + delta.y });
+            return `L ${next.x},${next.y}`;
         }
 
         if (selectState.edgeType === "real") {
-            return `L ${dragState.current.x + DRAWABLE_AREA.width / 2},${dragState.current.y + DRAWABLE_AREA.height / 2}`;
+            const current = viewport.toViewportPoint(dragState.current);
+            return `L ${current.x},${current.y}`;
         }
 
         // Edge 変更が有効な場所に移っていない場合は、元の線分を描画する
         if (!lineDragging.on_dragging || !lineDragging.majorChanging) {
-            return `L ${pair[1].x + DRAWABLE_AREA.width / 2},${pair[1].y + DRAWABLE_AREA.height / 2}`;
+            const next = viewport.toViewportPoint(pair[1]);
+            return `L ${next.x},${next.y}`;
         }
 
-        return `L ${dragState.current.x + DRAWABLE_AREA.width / 2},${dragState.current.y + DRAWABLE_AREA.height / 2}`
-            + ` L ${pair[1].x + DRAWABLE_AREA.width / 2},${pair[1].y + DRAWABLE_AREA.height / 2}`;
+        const current = viewport.toViewportPoint(dragState.current);
+        const next = viewport.toViewportPoint(pair[1]);
+        return `L ${current.x},${current.y}` + ` L ${next.x},${next.y}`;
     };
 
     const initHandleDragEdgeStart = (relationId: string, index: number) => {
@@ -492,7 +501,7 @@ const useStraightLineView = (
                 return;
             }
 
-            const mousePosition = getLogicalMousePosition(event, displayScale);
+            const mousePosition = viewport.toLogicalPoint(event);
 
             dispatchSelectAction({
                 type: "edge",
@@ -517,9 +526,10 @@ const useStraightLineView = (
                 && (selectState.edgeType === "real") && (selectState.edgeId === index);
             const currentEdge = onDragging ? dragState.current : edge;
 
+            const currentPoint = viewport.toViewportPoint(currentEdge);
             return (
                 <rect key={`relation-line_${relationView.relationId}_edge-${index}`}
-                    x={currentEdge.x - 5 + DRAWABLE_AREA.width / 2} y={currentEdge.y - 5 + DRAWABLE_AREA.height / 2}
+                    x={currentPoint.x - 5} y={currentPoint.y - 5}
                     width="10" height="10" fill={onDragging ? "black" : "white"} stroke="black"
                     className={initPathCss(relationView, onDragging) + " " + styleClasses.selectableSvg}
                     style={{ cursor: 'pointer', pointerEvents: "auto" }}
@@ -543,8 +553,9 @@ const useStraightLineView = (
         const parentEdge = relationLinePairs[selectState.edgeId][0];
         const childEdge = relationLinePairs[selectState.edgeId + 1][1];
 
-        const deActiveLine = `M ${parentEdge.x + DRAWABLE_AREA.width / 2},${parentEdge.y + DRAWABLE_AREA.height / 2}`
-            + ` L ${childEdge.x + DRAWABLE_AREA.width / 2},${childEdge.y + DRAWABLE_AREA.height / 2}`;
+        const start = viewport.toViewportPoint(parentEdge);
+        const end = viewport.toViewportPoint(childEdge);
+        const deActiveLine = `M ${start.x},${start.y}` + ` L ${end.x},${end.y}`;
 
         const initActiveDragModification = (majorChanging: boolean) => {
             return (event: React.MouseEvent) => {
@@ -722,7 +733,7 @@ const useOrthogonalLine = (
     const { editMode } = React.useContext(EditModeContext);
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
-    const displayScale = React.useContext(DisplayScaleContext);
+    const viewport = React.useContext(ViewportContext);
 
     const initPathCss = (selected: boolean, isReducedLine: boolean) => {
         if (!selected) {
@@ -772,7 +783,7 @@ const useOrthogonalLine = (
 
                 event.stopPropagation();
 
-                const mousePosition = getLogicalMousePosition(event, displayScale);
+                const mousePosition = viewport.toLogicalPoint(event);
 
                 dispatchSelectAction({
                     type: "edge",
@@ -791,7 +802,7 @@ const useOrthogonalLine = (
 
                 event.stopPropagation();
 
-                const mousePosition = getLogicalMousePosition(event, displayScale);
+                const mousePosition = viewport.toLogicalPoint(event);
                 setClickedPosition(mousePosition);
 
                 onDragAction({ type: "clear" });
@@ -806,8 +817,9 @@ const useOrthogonalLine = (
                 handleOpenEditDialog(event, relationView)
             };
 
-            const line = `M ${pair[0].x + DRAWABLE_AREA.width / 2},${pair[0].y + DRAWABLE_AREA.height / 2}`
-                + ` L ${pair[1].x + DRAWABLE_AREA.width / 2},${pair[1].y + DRAWABLE_AREA.height / 2}`;
+            const start = viewport.toViewportPoint(pair[0]);
+            const end = viewport.toViewportPoint(pair[1]);
+            const line = `M ${start.x},${start.y}` + ` L ${end.x},${end.y}`;
 
             return (
                 <path key={`relation-line_${relationView.relationId}_path-${index}`}
@@ -822,9 +834,10 @@ const useOrthogonalLine = (
             { relationView, points, parentTable, childTable, selectState, dragState }
         );
 
-        const drawingLine = "M" + draggedPoints.map(point =>
-            `${point.x + DRAWABLE_AREA.width / 2},${point.y + DRAWABLE_AREA.height / 2}`
-        ).join(" L");
+        const drawingLine = "M" + draggedPoints.map(point => {
+            const viewPoint = viewport.toViewportPoint(point);
+            return `${viewPoint.x},${viewPoint.y}`;
+        }).join(" L");
 
         const selected = (selectState.relationId === relationView.relationId);
 

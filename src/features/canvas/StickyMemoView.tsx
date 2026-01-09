@@ -16,16 +16,13 @@ import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
 import ColorSelector from "~/components/ColorSelector";
-import DisplayScaleContext from "~/context/DisplayScaleContext";
 import { DragAction, DragActionContext } from "~/context/DragActionContext";
 import EditModeContext from "~/context/EditModeContext";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
 import { LocalSettingContext } from "~/context/LocalSettingContext";
 import { RELEASE_ACTION, SelectEntityContext, SelectState } from "~/context/SelectEntityContext";
-import {
-    DRAWABLE_AREA, getLogicalMousePosition,
-    handlePreventMouseEvent, withMultiSelectKey
-} from "~/features/canvas/support";
+import { handlePreventMouseEvent, withMultiSelectKey } from "~/features/canvas/support";
+import ViewportContext from "~/context/ViewportContext";
 import MemoViewModel, { AlignType } from "~/models/MemoViewModel";
 import RectangleViewModel from "~/models/RectangleViewModel";
 import { EditModeType } from "~/models/EditMode";
@@ -43,13 +40,15 @@ type StickyNoteViewProps = {
     foreground?: boolean
 };
 
-const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDragAction, foreground = true }: StickyNoteViewProps) => {
+const StickyMemoView = ({
+    memoViewModel, visible = true, onSettingAction, onDragAction, foreground = true
+}: StickyNoteViewProps) => {
     const documentsHolder: ErdDocumentsHolder = React.useContext(ErdDocumentsHolderContext);
     const { editMode } = React.useContext(EditModeContext);
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
     const { dispatchLocalSetting } = React.useContext(LocalSettingContext);
-    const displayScale = React.useContext(DisplayScaleContext);
+    const viewport = React.useContext(ViewportContext);
 
     const textAreaRef = React.useRef<HTMLTextAreaElement>(null);
     const [isTextEdit, setTextEdit] = React.useState<boolean>(false);
@@ -89,7 +88,7 @@ const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDrag
 
         event.stopPropagation();
 
-        const mousePosition = getLogicalMousePosition(event, displayScale);
+        const mousePosition = viewport.toLogicalPoint(event);
         onDragAction({ type: "start_dragging", start: mousePosition });
 
         if (!selected) {
@@ -114,7 +113,7 @@ const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDrag
             return;
         }
 
-        const mousePosition = getLogicalMousePosition(event, displayScale);
+        const mousePosition = viewport.toLogicalPoint(event);
         const direction = getResizingDirection(currentRectangle, mousePosition, selectState);
         const nextStyle = initMouseCursorStyle(direction);
         setMouseCursorStyle(nextStyle);
@@ -193,6 +192,10 @@ const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDrag
     const moving = (
         selected && (dragState.status === "on_dragging") && !resizingDirection.isResizing()
     ) ? dragState.delta() : { x: 0, y: 0 };
+    const viewportPosition = viewport.toViewportPoint({
+        x: currentRectangle.positionX + moving.x,
+        y: currentRectangle.positionY + moving.y
+    });
 
     const initTextAreaElement = () => {
         if (isTextEdit) {
@@ -268,8 +271,7 @@ const StickyMemoView = ({ memoViewModel, visible = true, onSettingAction, onDrag
 
     const wrapperStyle: React.CSSProperties = {
         position: "absolute", overflow: "visible", zIndex: zIndex(selected),
-        left: `${currentRectangle.left + moving.x + DRAWABLE_AREA.width / 2}px`,
-        top: `${currentRectangle.top + moving.y + DRAWABLE_AREA.height / 2}px`,
+        left: viewportPosition.x, top: viewportPosition.y,
         display: "flex", flexDirection: "column", justifyContent: "flex-start",
         boxShadow: selected ? "" : "0px 0px 7px 0px #bebebe",
         // "&::-webkit-scrollbar": { display: "none" },

@@ -13,7 +13,6 @@ import TopLeftTooltip from "~/components/TopLeftTooltip";
 import KeyColor from "~/components/icons/KeyColor";
 import PrimaryKeyIcon from "~/components/icons/PrimaryKeyIcon";
 import ForeignKeyIcon from "~/components/icons/ForeignKeyIcon";
-import DisplayScaleContext from "~/context/DisplayScaleContext";
 import { DragAction, DragActionContext } from "~/context/DragActionContext";
 import EditModeContext from "~/context/EditModeContext";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
@@ -21,7 +20,8 @@ import { LocalSettingContext } from "~/context/LocalSettingContext";
 import { RELEASE_ACTION, SelectEntityContext, SelectState } from "~/context/SelectEntityContext";
 import DescriptionTooltip from "~/features/canvas/DescriptionTooltip";
 import EditAction from "~/features/canvas/EditAction";
-import { DRAWABLE_AREA, getLogicalMousePosition, handlePreventMouseEvent, withMultiSelectKey } from "~/features/canvas/support";
+import ViewportContext from "~/context/ViewportContext";
+import { handlePreventMouseEvent, withMultiSelectKey } from "~/features/canvas/support";
 import TableViewModel from "~/models/TableViewModel";
 import ColorValue from "~/models/ColorValue";
 import { EditModeType } from "~/models/EditMode";
@@ -350,8 +350,8 @@ const InnerErdTableView = ({
     const { editMode } = React.useContext(EditModeContext);
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
-    const displayScale = React.useContext(DisplayScaleContext);
     const { dispatchLocalSetting } = React.useContext(LocalSettingContext);
+    const viewport = React.useContext(ViewportContext);
 
     const erdDocument = documentsHolder.current();
     const erdSetting = erdDocument.erdSettingModel;
@@ -365,7 +365,7 @@ const InnerErdTableView = ({
             return;
         }
 
-        const mousePosition = getLogicalMousePosition(event, displayScale);
+        const mousePosition = viewport.toLogicalPoint(event);
         if (editMode === EditModeType.SELECT) {
             event.stopPropagation();
 
@@ -508,12 +508,16 @@ const InnerErdTableView = ({
     };
 
     const moving = (selected && (dragState.status === "on_dragging"))
-        ? dragState.delta() : { x: 0, y: 0 }
+        ? dragState.delta() : { x: 0, y: 0 };
+
+    const tableTopLeft = viewport.toViewportPoint({
+        x: tableViewModel.corner.left + moving.x,
+        y: tableViewModel.corner.top + moving.y
+    });
 
     const tableStyle = {
         position: "absolute", zIndex: selected ? 100 : "auto",
-        left: tableViewModel.corner.left + moving.x + DRAWABLE_AREA.width / 2,
-        top: tableViewModel.corner.top + moving.y + DRAWABLE_AREA.height / 2,
+        left: tableTopLeft.x, top: tableTopLeft.y,
         display: "flex", flexDirection: "column", justifyContent: "flex-start",
         userSelect: "none",
         ...(!visible && { opacity: 0, pointerEvents: 'none' })

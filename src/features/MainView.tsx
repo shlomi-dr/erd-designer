@@ -4,17 +4,18 @@ import { Box } from "@mui/material";
 import DisplayScaleContext from "~/context/DisplayScaleContext";
 import EditModeContext from "~/context/EditModeContext";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
+import { DEFAULT_LOCAL_SETTING, LocalSettingContext, reduceLocalSetting } from "~/context/LocalSettingContext";
 import {
-    SelectAction, reduceSelectAction, SelectEntityContext,
-    EMPTY_SELECT_STATE, RELEASE_ACTION
+    SelectAction, reduceSelectAction, SelectEntityContext, EMPTY_SELECT_STATE, RELEASE_ACTION
 } from "~/context/SelectEntityContext";
 import ControlPanel from "~/features/canvas/ControlPanel";
 import DisplayScalePanel from "~/features/canvas/DisplayScalePanel";
 import ErdCanvas from "~/features/canvas/ErdCanvas";
+import TitlePanel from "~/features/canvas/TitlePanel";
 import EditMode, { EditModeType } from "~/models/EditMode";
 import ErdDocument from "~/models/ErdDocument";
-import { DEFAULT_LOCAL_SETTING, LocalSettingContext, reduceLocalSetting } from "~/context/LocalSettingContext";
-import TitlePanel from "~/features/canvas/TitlePanel";
+import { useViewport } from "~/features/canvas/Viewport";
+import ViewportContext from "~/context/ViewportContext";
 
 type MainViewProps = {
     erdDocument: ErdDocument,
@@ -34,6 +35,16 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
     const [editMode, dispatchEditMode] = React.useReducer(initReduceEditMode(dispatchSelectAction), EditModeType.SELECT);
     const [localSetting, dispatchLocalSetting] = React.useReducer(reduceLocalSetting, DEFAULT_LOCAL_SETTING);
     const [scale, setScale] = React.useState<number>(1);
+    const { viewport, updateViewportScale } = useViewport();
+
+    const handleOnUpdateScale = (updating: number) => setScale(current => {
+        if (current === updating) {
+            return current;
+        }
+
+        updateViewportScale(updating);
+        return updating;
+    });
 
     const handleOnSave = (documents: ErdDocument[], cursor: number) => {
         if ((cursor < 0) || (cursor >= documents.length)) {
@@ -47,23 +58,6 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
 
     const documentsHolder = new ErdDocumentsHolder(holderProps.erdDocuments, holderProps.cursor, handleOnSave);
 
-    const titlePanelStyle = {
-        position: "fixed",
-        top: "30px",
-        left: "30px",
-    };
-    const controlPanelStyle = {
-        position: "fixed",
-        top: "50%",
-        left: "50px",
-        transform: "translateY(-50%)",
-    };
-    const scalePanelStyle = {
-        position: "fixed",
-        bottom: "30px",
-        right: "30px",
-    };
-
     return (
         <ErdDocumentsHolderContext.Provider value={documentsHolder}>
             <EditModeContext.Provider value={{ editMode, dispatchEditMode }}>
@@ -71,7 +65,9 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
                     <LocalSettingContext.Provider value={{ localSetting, dispatchLocalSetting }}>
                         <DisplayScaleContext.Provider value={scale} >
                             <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
-                                <ErdCanvas />
+                                <ViewportContext.Provider value={viewport}>
+                                    <ErdCanvas />
+                                </ViewportContext.Provider>
                             </Box>
                             <Box sx={titlePanelStyle}>
                                 <TitlePanel />
@@ -80,7 +76,7 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
                                 <ControlPanel erdExportable={erdExportable} />
                             </Box>
                             <Box sx={scalePanelStyle}>
-                                <DisplayScalePanel scale={scale} onChangeScale={setScale} />
+                                <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
                             </Box>
                         </DisplayScaleContext.Provider>
                     </LocalSettingContext.Provider>
@@ -88,6 +84,23 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
             </EditModeContext.Provider>
         </ErdDocumentsHolderContext.Provider>
     );
+};
+
+const titlePanelStyle = {
+    position: "fixed",
+    top: "30px",
+    left: "30px",
+};
+const controlPanelStyle = {
+    position: "fixed",
+    top: "50%",
+    left: "50px",
+    transform: "translateY(-50%)",
+};
+const scalePanelStyle = {
+    position: "fixed",
+    bottom: "30px",
+    right: "30px",
 };
 
 const initReduceEditMode = (dispatchSelectAction: (action: SelectAction) => void) => {
