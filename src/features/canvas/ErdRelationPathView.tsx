@@ -19,7 +19,6 @@ import { EditModeType } from "~/models/EditMode";
 import { DragAction, DragActionContext } from "~/context/DragActionContext";
 import EditAction from "~/features/canvas/EditAction";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
-import DisplayScaleContext from "~/context/DisplayScaleContext";
 import ErdDocument from "~/models/ErdDocument";
 import styleClasses from "./ErdCanvas.module.css";
 import ColorValue from "~/models/ColorValue";
@@ -42,12 +41,13 @@ type ErdRelationPathViewProps = {
     ref: React.Ref<ErdRelationTooltipRef>
 };
 
-const ErdRelationPathView = ({ relationViews, rectangleMap, onEditAction, onDragAction, ref }: ErdRelationPathViewProps) => {
+const ErdRelationPathView = ({
+    relationViews, rectangleMap, onEditAction, onDragAction, ref
+}: ErdRelationPathViewProps) => {
     const documentsHolder: ErdDocumentsHolder = React.useContext(ErdDocumentsHolderContext);
     const { editMode } = React.useContext(EditModeContext);
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const dragState = React.useContext(DragActionContext);
-    const displayScale = React.useContext(DisplayScaleContext);
     const viewport = React.useContext(ViewportContext);
 
     const [clickedPosition, setClickedPosition] = React.useState<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -181,8 +181,8 @@ const ErdRelationPathView = ({ relationViews, rectangleMap, onEditAction, onDrag
                 onMouseDown={handlePreventMouseEvent} onMouseUp={handlePreventMouseEvent}
                 sx={{
                     position: "absolute",
-                    left: viewportPosition.x * displayScale + 15,
-                    top: viewportPosition.y * displayScale - 45,
+                    left: viewportPosition.x * viewport.displayScale + 15,
+                    top: viewportPosition.y * viewport.displayScale - 45,
                     backgroundColor: "#FFFFFF"
                 }}>
                 <ColorSelector key={`relation-color-selector_${relationView.relationId}`}

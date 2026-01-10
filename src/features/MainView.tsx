@@ -1,7 +1,6 @@
 import React from "react";
 import { Box } from "@mui/material";
 
-import DisplayScaleContext from "~/context/DisplayScaleContext";
 import EditModeContext from "~/context/EditModeContext";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
 import { DEFAULT_LOCAL_SETTING, LocalSettingContext, reduceLocalSetting } from "~/context/LocalSettingContext";
@@ -37,13 +36,16 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
     const [scale, setScale] = React.useState<number>(1);
     const { viewport, updateViewportScale } = useViewport();
 
-    const handleOnUpdateScale = (updating: number) => setScale(current => {
-        if (current === updating) {
+    const handleOnUpdateScale = (updatingScale: number) => setScale(current => {
+        if (current === updatingScale) {
+            return current;
+        }
+        if (updatingScale <= 0) {
             return current;
         }
 
-        updateViewportScale(updating);
-        return updating;
+        updateViewportScale(updatingScale);
+        return updatingScale;
     });
 
     const handleOnSave = (documents: ErdDocument[], cursor: number) => {
@@ -63,22 +65,20 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
             <EditModeContext.Provider value={{ editMode, dispatchEditMode }}>
                 <SelectEntityContext.Provider value={{ selectState, dispatchSelectAction }}>
                     <LocalSettingContext.Provider value={{ localSetting, dispatchLocalSetting }}>
-                        <DisplayScaleContext.Provider value={scale} >
-                            <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
-                                <ViewportContext.Provider value={viewport}>
-                                    <ErdCanvas />
-                                </ViewportContext.Provider>
-                            </Box>
-                            <Box sx={titlePanelStyle}>
-                                <TitlePanel />
-                            </Box>
-                            <Box sx={controlPanelStyle}>
-                                <ControlPanel erdExportable={erdExportable} />
-                            </Box>
-                            <Box sx={scalePanelStyle}>
-                                <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
-                            </Box>
-                        </DisplayScaleContext.Provider>
+                        <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
+                            <ViewportContext.Provider value={viewport}>
+                                <ErdCanvas />
+                            </ViewportContext.Provider>
+                        </Box>
+                        <Box sx={titlePanelStyle}>
+                            <TitlePanel />
+                        </Box>
+                        <Box sx={controlPanelStyle}>
+                            <ControlPanel erdExportable={erdExportable} />
+                        </Box>
+                        <Box sx={scalePanelStyle}>
+                            <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
+                        </Box>
                     </LocalSettingContext.Provider>
                 </SelectEntityContext.Provider>
             </EditModeContext.Provider>

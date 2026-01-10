@@ -26,7 +26,7 @@ export default class Viewport {
         return this.innerViewport.screen;
     }
 
-    public get scale(): number {
+    public get displayScale(): number {
         return this.innerViewport.scale;
     }
 
@@ -40,8 +40,8 @@ export default class Viewport {
     public toLogicalPoint(event: React.MouseEvent | MouseEvent): Point {
         const { scrollX, scrollY } = getScroll();
 
-        const x = this.center.x + (event.clientX + scrollX) / this.scale - this.screen.width / 2;
-        const y = this.center.y + (event.clientY + scrollY) / this.scale - this.screen.height / 2;
+        const x = this.center.x + (event.clientX + scrollX) / this.displayScale - this.screen.width / 2;
+        const y = this.center.y + (event.clientY + scrollY) / this.displayScale - this.screen.height / 2;
 
         return {
             x: Math.floor(x * 100) / 100,
@@ -73,8 +73,8 @@ export default class Viewport {
     }
 
     public resizeViewport(width: number, height: number): void {
-        const nextWidth = Math.max(800, width) / this.scale;
-        const nextHeight = Math.max(500, height) / this.scale;
+        const nextWidth = Math.max(800, width) / this.displayScale;
+        const nextHeight = Math.max(500, height) / this.displayScale;
 
         if ((this.screen.width === nextWidth) && (this.screen.height === nextHeight)) {
             return;
@@ -89,7 +89,7 @@ export default class Viewport {
                 x: this.center.x + deltaWidth / 2,
                 y: this.center.y + deltaHeight / 2
             },
-            scale: this.scale,
+            scale: this.displayScale,
             screen: { width: nextWidth, height: nextHeight }
         });
     }

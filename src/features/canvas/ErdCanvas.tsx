@@ -1,7 +1,6 @@
 import React from "react";
 import { Box } from "@mui/material";
 
-import DisplayScaleContext from "~/context/DisplayScaleContext";
 import { DragActionContext, DragState, NO_DRAGGING, reduceDragAction } from "~/context/DragActionContext";
 import EditModeContext from "~/context/EditModeContext";
 import { ErdDocumentsHolder, ErdDocumentsHolderContext } from "~/context/ErdDocumentsHolderContext";
@@ -10,7 +9,9 @@ import { RELEASE_ACTION, SelectAction, SelectEntityContext, SelectState } from "
 import EditAction from "~/features/canvas/EditAction";
 import ErdRelationPathView, { ErdRelationTooltipRef } from "~/features/canvas/ErdRelationPathView";
 import ErdTableView, { ERD_TABLE_VIEW_CLASS_NAME } from "~/features/canvas/ErdTableView";
-import { CARDINALITY_MARKER, getScroll, Point, toNextOrthogonalLines, withMultiSelectKey } from "~/features/canvas/support";
+import {
+    CARDINALITY_MARKER, getScroll, Point, toNextOrthogonalLines, withMultiSelectKey
+} from "~/features/canvas/support";
 import RelationEditView from "~/features/editor/RelationEditView";
 import TableEditView from "~/features/editor/TableEditView";
 import TableModel from "~/models/database/TableModel";
@@ -39,7 +40,7 @@ const ErdCanvas = () => {
     const { selectState, dispatchSelectAction } = React.useContext(SelectEntityContext);
     const { localSetting, dispatchLocalSetting } = React.useContext(LocalSettingContext);
     const viewport = React.useContext(ViewportContext);
-    const displayScale = React.useContext(DisplayScaleContext);
+    const { grabbingPanel, startGrabbing } = useGrabbing();
 
     // Canvas に描画されている短形の情報を保持する
     const [rectangleArea, setRectangleArea] = React.useState<RectangleArea>(
@@ -55,19 +56,6 @@ const ErdCanvas = () => {
     const [relationEdge, setRelationEdge] = React.useState<Point | null>(null);
     // FireFox の場合、ドラッグ完了後に click イベントが発生するため、ドラッグ距離を保持して、ドラッグ後のイベントを制御する
     const [dragDistance, setDragDistance] = React.useState<number>(0);
-    // Grab 操作に関する制御
-    const panViewport = React.useCallback((delta: Point) => viewport.panViewport(delta), [viewport]);
-
-    const { grabbingPanel, startGrabbing } = useGrabbing();
-
-    React.useLayoutEffect(() => {
-        const handleResize = () => viewport.resizeViewport(window.innerWidth, window.innerHeight);
-
-        handleResize();
-        window.addEventListener("resize", handleResize);
-
-        return () => window.removeEventListener("resize", handleResize);
-    }, [viewport]);
 
     const erdDocument = documentsHolder.current();
 
@@ -292,7 +280,7 @@ const ErdCanvas = () => {
         }
 
         // Canvas 描画領域の初期化
-        const rectangleArea = initRectangleArea(erdCanvas, displayScale, viewport.center);
+        const rectangleArea = initRectangleArea(erdCanvas, viewport.displayScale, viewport.center);
         setRectangleArea(rectangleArea);
 
         if (rectangleArea.tableRectangles.size === 0) {
@@ -306,9 +294,9 @@ const ErdCanvas = () => {
             }
         });
         window.dispatchEvent(customEvent);
-    }, [viewport.center, erdDocument.lastUpdatedAt, displayScale, dragState.status, currentPerspective]);
+    }, [viewport.center, viewport.displayScale, dragState.status, erdDocument.lastUpdatedAt, currentPerspective]);
 
-    // // リレーションの線情報を更新
+    // リレーションの線情報を更新
     React.useLayoutEffect(() => {
         if (relationRef.current == null) {
             return;
@@ -343,11 +331,10 @@ const ErdCanvas = () => {
         window.scrollTo(window.innerWidth / 2, window.innerHeight / 2);
     }, []);
 
-
+    // ウィンドウサイズ変更の成魚を window に登録
+    React.useLayoutEffect(() => initEffectOfWindowResize(viewport), [viewport]);
     // スクロール可能領域の制御を window に登録
-    React.useLayoutEffect(() => {
-        return initEffectOfScrollOnCanvas(displayScale, panViewport);
-    }, [displayScale, panViewport]);
+    React.useLayoutEffect(() => initEffectOfScrollOnCanvas(viewport), [viewport]);
 
     // keyUp 時のイベントを window.document に登録
     React.useEffect(() => {
@@ -392,8 +379,7 @@ const ErdCanvas = () => {
         };
     }, [documentsHolder]);
 
-
-    const canvasStyle = initCanvasStyle(displayScale, viewport);
+    const canvasStyle = initCanvasStyle(viewport);
     const svgStyle: React.CSSProperties = {
         position: "absolute", top: 0, left: 0,
         width: `${viewport.screen.width}px`,
@@ -540,7 +526,7 @@ const performGrabbing = ({
             const deltaY = (startPosition.y - mousePosition.y);
 
             // 閾値以下の移動は無視
-            if (Math.abs(deltaX) + Math.abs(deltaY) < 3 / viewport.scale) {
+            if (Math.abs(deltaX) + Math.abs(deltaY) < 3 / viewport.displayScale) {
                 grabbingAnimationRef.current = null;
                 return;
             }
@@ -568,15 +554,15 @@ const performGrabbing = ({
     grabbingPanelRef.current.addEventListener("mousemove", handleMouseMove);
 };
 
-const initCanvasStyle = (displayScale: number, viewport: Viewport): React.CSSProperties => {
+const initCanvasStyle = (viewport: Viewport): React.CSSProperties => {
     const GRID_SIZE = 25;
 
     const gridOffsetX = (viewport.screen.width / 2 - viewport.center.x) % GRID_SIZE;
     const gridOffsetY = (viewport.screen.height / 2 - viewport.center.y) % GRID_SIZE;
 
     // スケール適用後の実際の表示サイズ
-    const scaledWidth = viewport.screen.width * displayScale;
-    const scaledHeight = viewport.screen.height * displayScale;
+    const scaledWidth = viewport.screen.width * viewport.displayScale;
+    const scaledHeight = viewport.screen.height * viewport.displayScale;
 
     const baseCanvasStyle: React.CSSProperties = {
         position: "absolute",
@@ -585,10 +571,10 @@ const initCanvasStyle = (displayScale: number, viewport: Viewport): React.CSSPro
         width: `${viewport.screen.width}px`, height: `${viewport.screen.height}px`,
         overflow: "hidden", display: "flex", flexDirection: "column", alignItems: "center",
         backgroundColor: "white",
-        transform: `scale(${displayScale})`, transformOrigin: "top left"
+        transform: `scale(${viewport.displayScale})`, transformOrigin: "top left"
     };
 
-    const gridStyle: React.CSSProperties = (displayScale >= 0.5) ? {
+    const gridStyle: React.CSSProperties = (viewport.displayScale >= 0.5) ? {
         backgroundImage: linerGradient([0, 90]),
         backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`
@@ -821,20 +807,32 @@ const findMouseCursorIcon = (editMode: EditMode) => {
     return "default";
 };
 
-const initEffectOfScrollOnCanvas = (displayScale: number, panViewport: (delta: Point) => void) => {
-    const handleWheel = (event: WheelEvent) => {
+const initEffectOfWindowResize = (viewport: Viewport) => {
+    const handleResize = () => viewport.resizeViewport(window.innerWidth, window.innerHeight);
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+};
+
+const initEffectOfScrollOnCanvas = (viewport: Viewport) => {
+    const handleWheelMoving = (event: WheelEvent) => {
         if (event.ctrlKey) {
             return;
         }
 
         event.preventDefault();
 
-        panViewport({ x: event.deltaX / displayScale, y: event.deltaY / displayScale });
+        viewport.panViewport({
+            x: event.deltaX / viewport.displayScale,
+            y: event.deltaY / viewport.displayScale
+        });
     };
 
-    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("wheel", handleWheelMoving, { passive: false });
 
-    return () => window.removeEventListener("wheel", handleWheel);
+    return () => window.removeEventListener("wheel", handleWheelMoving);
 };
 
 type KeyEventHandler = {
