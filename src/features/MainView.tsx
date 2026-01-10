@@ -33,22 +33,8 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
     const [selectState, dispatchSelectAction] = React.useReducer(reduceSelectAction, EMPTY_SELECT_STATE);
     const [editMode, dispatchEditMode] = React.useReducer(initReduceEditMode(dispatchSelectAction), EditModeType.SELECT);
     const [localSetting, dispatchLocalSetting] = React.useReducer(reduceLocalSetting, DEFAULT_LOCAL_SETTING);
-    const [scale, setScale] = React.useState<number>(1);
-    const { viewport, updateViewportScale } = useViewport();
 
-    const handleOnUpdateScale = (updatingScale: number) => setScale(current => {
-        if (current === updatingScale) {
-            return current;
-        }
-        if (updatingScale <= 0) {
-            return current;
-        }
-
-        updateViewportScale(updatingScale);
-        return updatingScale;
-    });
-
-    const handleOnSave = (documents: ErdDocument[], cursor: number) => {
+    const handleOnSave = React.useCallback((documents: ErdDocument[], cursor: number) => {
         if ((cursor < 0) || (cursor >= documents.length)) {
             console.warn(`Invalid cursor value. documents.length: ${documents.length}, cursor: ${cursor}`);
             return;
@@ -56,28 +42,28 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
 
         onSave(documents[cursor]);
         setHolderProps({ erdDocuments: documents, cursor });
-    };
+    }, [onSave]);
 
-    const documentsHolder = new ErdDocumentsHolder(holderProps.erdDocuments, holderProps.cursor, handleOnSave);
+    const documentsHolder = React.useMemo(
+        () => new ErdDocumentsHolder(holderProps.erdDocuments, holderProps.cursor, handleOnSave),
+        [holderProps, handleOnSave]
+    );
+
+    const editModeValue = React.useMemo(() => ({ editMode, dispatchEditMode }), [editMode]);
+    const selectEntityValue = React.useMemo(() => ({ selectState, dispatchSelectAction }), [selectState]);
+    const localSettingValue = React.useMemo(() => ({ localSetting, dispatchLocalSetting }), [localSetting]);
 
     return (
         <ErdDocumentsHolderContext.Provider value={documentsHolder}>
-            <EditModeContext.Provider value={{ editMode, dispatchEditMode }}>
-                <SelectEntityContext.Provider value={{ selectState, dispatchSelectAction }}>
-                    <LocalSettingContext.Provider value={{ localSetting, dispatchLocalSetting }}>
-                        <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
-                            <ViewportContext.Provider value={viewport}>
-                                <ErdCanvas />
-                            </ViewportContext.Provider>
-                        </Box>
+            <EditModeContext.Provider value={editModeValue}>
+                <SelectEntityContext.Provider value={selectEntityValue}>
+                    <LocalSettingContext.Provider value={localSettingValue}>
+                        <InnerCanvasView />
                         <Box sx={titlePanelStyle}>
                             <TitlePanel />
                         </Box>
                         <Box sx={controlPanelStyle}>
                             <ControlPanel erdExportable={erdExportable} />
-                        </Box>
-                        <Box sx={scalePanelStyle}>
-                            <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
                         </Box>
                     </LocalSettingContext.Provider>
                 </SelectEntityContext.Provider>
@@ -97,6 +83,35 @@ const controlPanelStyle = {
     left: "50px",
     transform: "translateY(-50%)",
 };
+
+const InnerCanvasView = () => {
+    const [scale, setScale] = React.useState<number>(1);
+    const { viewport, updateViewportScale } = useViewport();
+
+    const handleOnUpdateScale = React.useCallback((updatingScale: number) => setScale(current => {
+        if (current === updatingScale) {
+            return current;
+        }
+        if (updatingScale <= 0) {
+            return current;
+        }
+
+        updateViewportScale(updatingScale);
+        return updatingScale;
+    }), [updateViewportScale]);
+
+    return (<>
+        <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
+            <ViewportContext.Provider value={viewport}>
+                <ErdCanvas />
+            </ViewportContext.Provider>
+        </Box>
+        <Box sx={scalePanelStyle}>
+            <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
+        </Box>
+    </>);
+};
+
 const scalePanelStyle = {
     position: "fixed",
     bottom: "30px",

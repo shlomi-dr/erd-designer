@@ -108,7 +108,7 @@ export const useViewport = () => {
     });
 
     const viewport = new Viewport(innerViewport, setInnerViewport);
-    const updateViewportScale = (updating: number) => {
+    const updateViewportScale = React.useCallback((updating: number) => {
         setInnerViewport(current => {
             if (current.scale === updating) {
                 return current;
@@ -123,7 +123,7 @@ export const useViewport = () => {
                 scale: updating
             };
         });
-    };
+    }, []);
 
     return { viewport, updateViewportScale };
 };
