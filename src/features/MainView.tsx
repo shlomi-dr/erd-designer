@@ -58,12 +58,9 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
             <EditModeContext.Provider value={editModeValue}>
                 <SelectEntityContext.Provider value={selectEntityValue}>
                     <LocalSettingContext.Provider value={localSettingValue}>
-                        <InnerCanvasView />
-                        <Box sx={titlePanelStyle}>
+                        <InnerCanvasView erdExportable={erdExportable} />
+                        <Box sx={TITLE_PANEL_STYLE}>
                             <TitlePanel />
-                        </Box>
-                        <Box sx={controlPanelStyle}>
-                            <ControlPanel erdExportable={erdExportable} />
                         </Box>
                     </LocalSettingContext.Provider>
                 </SelectEntityContext.Provider>
@@ -72,51 +69,61 @@ const MainView = ({ erdDocument, onSave, erdExportable = true }: MainViewProps) 
     );
 };
 
-const titlePanelStyle = {
+const TITLE_PANEL_STYLE = {
     position: "fixed",
     top: "30px",
     left: "30px",
-};
-const controlPanelStyle = {
-    position: "fixed",
-    top: "50%",
-    left: "50px",
-    transform: "translateY(-50%)",
-};
+} as const;
 
-const InnerCanvasView = () => {
+const InnerCanvasView = ({ erdExportable }: { erdExportable: boolean }) => {
     const [scale, setScale] = React.useState<number>(1);
     const { viewport, updateViewportScale } = useViewport();
 
-    const handleOnUpdateScale = React.useCallback((updatingScale: number) => setScale(current => {
-        if (current === updatingScale) {
-            return current;
-        }
-        if (updatingScale <= 0) {
-            return current;
-        }
+    const handleOnUpdateScale = React.useCallback(
+        (updatingScale: number) => setScale(current => {
+            if (current === updatingScale) {
+                return current;
+            }
+            if (updatingScale <= 0) {
+                return current;
+            }
 
-        updateViewportScale(updatingScale);
-        return updatingScale;
-    }), [updateViewportScale]);
+            updateViewportScale(updatingScale);
+            return updatingScale;
+        }), [updateViewportScale]);
+
+    const controlPanel = React.useMemo(() => {
+        return (
+            <Box sx={CONTROL_PANEL_STYLE}>
+                <ControlPanel erdExportable={erdExportable} />
+            </Box>
+        );
+    }, [erdExportable])
 
     return (<>
-        <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
-            <ViewportContext.Provider value={viewport}>
+        <ViewportContext.Provider value={viewport}>
+            <Box sx={{ position: "relative", width: "100%", height: "100vh" }}>
                 <ErdCanvas />
-            </ViewportContext.Provider>
-        </Box>
-        <Box sx={scalePanelStyle}>
+            </Box>
+            {controlPanel}
+        </ViewportContext.Provider>
+        <Box sx={SCALE_PANEL_STYLE}>
             <DisplayScalePanel scale={scale} onChangeScale={handleOnUpdateScale} />
         </Box>
     </>);
 };
 
-const scalePanelStyle = {
+const CONTROL_PANEL_STYLE = {
+    position: "fixed",
+    top: "50%",
+    left: "50px",
+    transform: "translateY(-50%)",
+} as const;
+const SCALE_PANEL_STYLE = {
     position: "fixed",
     bottom: "30px",
     right: "30px",
-};
+} as const;
 
 const initReduceEditMode = (dispatchSelectAction: (action: SelectAction) => void) => {
     return (_current: EditMode, action: EditMode) => {

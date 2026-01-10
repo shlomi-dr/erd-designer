@@ -8,6 +8,8 @@ import exportExcelFormatSpecification from "~/features/spec/ExcelFormatSpecifica
 import download from "~/components/file-downloader";
 import MainView from "~/features/MainView";
 import RectangleViewModel from "~/models/RectangleViewModel";
+import EventName from "~/config/EventName";
+import VsCodeMessage from "~/config/VsCodeMessage";
 
 const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
     const [documentUri, setDocumentUri] = React.useState<string>("");
@@ -27,7 +29,7 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
                 return;
             }
 
-            if (message.eventSource !== "erd-designer") {
+            if (message.eventSource !== VsCodeMessage.EVENT_SOURCE) {
                 return;
             }
             const uri = message.documentUri as string;
@@ -37,7 +39,7 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
             }
 
             // VSCode 拡張機能側より初期化処理が完了し、ファイルの内容を受信したときの制御
-            if (message.messageType === "init") {
+            if (message.messageType === VsCodeMessage.INITIALIZE_DOCUMENT) {
                 const jsonContext = message.jsonContext as string;
                 let erdDocument: ErdDocument | null = null;
                 if (jsonContext.length > 0) {
@@ -62,12 +64,13 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
                 return;
             }
 
-            if (message.messageType === "changeDocument") {
+            // ドキュメント変更通知の受信
+            if (message.messageType === VsCodeMessage.EXTERNALY_CHANGED_DOCUMENT) {
                 const jsonContext = message.jsonContext as string;
                 const erdDocument = ErdDocument.toObject(JSON.parse(jsonContext));
 
                 // ドキュメントの履歴管理は MainView 配下で行うため、MainView 配下の ErdCanvas に変更を通知する
-                const customEvent = new CustomEvent("externalDocumentChanged", {
+                const customEvent = new CustomEvent(EventName.EXTERNAL_DOCUMENT_CHANGED, {
                     detail: {
                         erdDocument: erdDocument
                     }
@@ -75,7 +78,7 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
                 window.dispatchEvent(customEvent);
 
                 console.debug("Dispatching a changeDocument event from vscode"
-                    + ` to externalDocumentChanged event: ${documentUri}`);
+                    + ` to ${EventName.EXTERNAL_DOCUMENT_CHANGED} event: ${documentUri}`);
 
                 return;
             }
@@ -88,7 +91,7 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
         };
     }, [documentUri]);
 
-    // Canvas 上に描画されたテーブルの矩形情報を受信し、拡張機能に伝搬する。
+    // Canvas 上に描画されたテーブルの矩形情報を受信し、VSCode 拡張機能に伝搬する。
     React.useEffect(() => {
         const handleCanvasRectanglesDrawn = (event: Event) => {
             const customEvent = event as CustomEvent;
@@ -97,6 +100,7 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
                 return;
             }
 
+            // TODO memoRectangles も送信するようにする
             const tableRectangles = eventDetail.tableRectangles as Map<string, RectangleViewModel>;
             const rectangles = Array.from(tableRectangles.entries())
                 .map(([tableId, rectangle]) => ({
@@ -105,17 +109,17 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
                 }));
 
             vscodeApi.postMessage({
-                eventSource: "erd-designer",
-                messageType: "drawnRectangles",
+                eventSource: VsCodeMessage.EVENT_SOURCE,
+                messageType: VsCodeMessage.DRAWN_RECTANGLES,
                 documentUri: documentUri,
                 rectangles: rectangles
             });
         };
 
-        window.addEventListener("canvasRectanglesDrawn", handleCanvasRectanglesDrawn);
+        window.addEventListener(EventName.CANVAS_RECTANGLES_DRAWN, handleCanvasRectanglesDrawn);
 
         return () => {
-            window.removeEventListener("canvasRectanglesDrawn", handleCanvasRectanglesDrawn);
+            window.removeEventListener(EventName.CANVAS_RECTANGLES_DRAWN, handleCanvasRectanglesDrawn);
         };
     }, [documentUri, vscodeApi]);
 
@@ -123,8 +127,8 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
     if (documentUri === "") {
         // VSCode 側に準備完了を通知する。その後、上記の message イベントが発火されるのを待つ。
         vscodeApi.postMessage({
-            eventSource: "erd-designer",
-            messageType: "ready"
+            eventSource: VsCodeMessage.EVENT_SOURCE,
+            messageType: VsCodeMessage.READY
         });
 
         console.debug("Sent ready event to vscode extension.");
@@ -141,8 +145,8 @@ const VsCodeExtensionApplication = (prop: { vscodeApi: VsCodeApi }) => {
     const handleSaveDocument = (updating: ErdDocument) => {
         // ファイル保存は VSCode 側に処理を委譲する
         vscodeApi.postMessage({
-            eventSource: "erd-designer",
-            messageType: "save",
+            eventSource: VsCodeMessage.EVENT_SOURCE,
+            messageType: VsCodeMessage.SAVE_DOCUMENT,
             documentUri: documentUri,
             erdDocument: updating.toJSON()
         });

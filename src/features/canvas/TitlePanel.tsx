@@ -35,7 +35,9 @@ const TitlePanel = () => {
     }
 
     const isSettingOpen = Boolean(preferenceElement);
-    const handleOpenPreference = (event: React.MouseEvent<HTMLButtonElement>) => setPreferenceElement(event.currentTarget);
+    const handleOpenPreference = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setPreferenceElement(event.currentTarget);
+    }
     const handleClosePreference = () => {
         setPreferenceElement(null);
     };
@@ -52,6 +54,7 @@ const TitlePanel = () => {
     const handleCloseDisplayStyle = () => {
         setDisplayStyleElement(null);
     };
+
     const initHandleChangeDisplayStyle = (displayStyle: DisplayStyle) => {
         return () => {
             if (displayStyle.name === erdSetting.displayStyle.name) {
@@ -62,15 +65,8 @@ const TitlePanel = () => {
             documentsHolder.updateErdSetting(nextErdSetting);
 
             handleCloseDisplayStyle();
+            handleClosePreference();
         };
-    };
-
-    const handleLeavingPreference = () => {
-        if (displayStyleElement !== null) {
-            return;
-        }
-
-        handleClosePreference();
     };
 
     const handleCloseMenu = () => {
@@ -90,8 +86,7 @@ const TitlePanel = () => {
                 <SettingsIcon />
             </IconButton>
 
-            <Menu anchorEl={preferenceElement} open={isSettingOpen} onClose={handleClosePreference}
-                slotProps={{ list: { onMouseLeave: handleLeavingPreference } }}>
+            <Menu anchorEl={preferenceElement} open={isSettingOpen} onClose={handleClosePreference}>
                 <MenuItem sx={{ paddingRight: "4px" }}
                     onClick={event => setDisplayStyleElement(event.currentTarget)}>
                     Display Style : {erdSetting.displayStyle.name} <ArrowRightIcon />
@@ -155,14 +150,14 @@ const TITLE_PANEL_STYLE = {
     paddingLeft: "15px",
     paddingRight: "15px",
     backgroundColor: "#FFFFFF"
-};
+} as const;
 
 const TITLE_INPUT_STYLE = {
     fontSize: "1.2rem",
     fontWeight: "bold",
     color: "#3F3F3F",
     width: "300px"
-};
+} as const;
 
 const databaseTypeIcons: { [key in DatabaseType]: React.JSX.Element } = {
     "postgres": (

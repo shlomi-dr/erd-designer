@@ -134,13 +134,13 @@ const HEADER_STYLE = {
     borderBottom: "1px solid black",
     display: "flex",
     fontSize: "0.95em"
-};
+} as const;
 
 const BODY_STYLE = {
     flex: "1 1 auto",
     display: "flex", flexDirection: "column", alignItems: "stretch",
     backgroundColor: "#FDFDFD"
-};
+} as const;
 
 const initTableColumn = (columnModel: ColumnModel, tableModel: TableModel, erdDocument: ErdDocument, selectState: SelectState) => {
     const columnShareModel = erdDocument.findColumnShareModel(columnModel.columnShareModelId);
@@ -316,19 +316,19 @@ const STYLE_PRIMARY_CELL = {
     whiteSpace: "nowrap",
     paddingTop: "4px", paddingBottom: "4px",
     paddingLeft: "12px", paddingRight: "2px"
-};
+} as const;
 const STYLE_FOREIGN_CELL = {
     whiteSpace: "nowrap",
     paddingTop: "4px", paddingBottom: "4px",
     paddingLeft: "2px", paddingRight: "12px"
-};
+} as const;
 const STYLE_MARKER_CELL = {
     paddingLeft: "0px", paddingRight: "10px"
-};
+} as const;
 const STYLE_MARKER_GRID = {
     whiteSpace: "nowrap", paddingLeft: "6px", paddingRight: "6px"
-};
-const STYLE_MARKER_MARGIN = { margin: "2.8px" };
+} as const;
+const STYLE_MARKER_MARGIN = { margin: "2.8px" } as const;
 
 type InnerErdTableViewProps = {
     tableViewModel: TableViewModel,
@@ -592,6 +592,6 @@ const InnerErdTableView = ({
 const CONTROL_PANEL_STYLE = {
     backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: "10px"
-};
+} as const;
 
 export default ErdTableView;

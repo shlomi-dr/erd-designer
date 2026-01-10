@@ -25,6 +25,7 @@ import PerspectiveModel from "~/models/PerspectiveModel";
 import PerspectiveSettingView from "~/features/editor/PerspectiveSettingView";
 import ErdDocument from "~/models/ErdDocument";
 import Viewport from "~/features/canvas/Viewport";
+import EventName from "~/config/EventName";
 
 type RectangleArea = {
     tableRectangles: Map<string, RectangleViewModel>,
@@ -283,14 +284,15 @@ const ErdCanvas = () => {
         const rectangleArea = initRectangleArea(erdCanvas, viewport.displayScale, viewport.center);
         setRectangleArea(rectangleArea);
 
-        if (rectangleArea.tableRectangles.size === 0) {
+        if ((rectangleArea.tableRectangles.size + rectangleArea.memoRectangles.size) === 0) {
             return;
         }
 
         // 描画変更をイベント通知 (VSCode 拡張機能側で利用できるよう、VsCodeExtensionApplication にて制御する)
-        const customEvent = new CustomEvent("canvasRectanglesDrawn", {
+        const customEvent = new CustomEvent(EventName.CANVAS_RECTANGLES_DRAWN, {
             detail: {
-                tableRectangles: rectangleArea.tableRectangles
+                tableRectangles: rectangleArea.tableRectangles,
+                memoRectangles: rectangleArea.memoRectangles
             }
         });
         window.dispatchEvent(customEvent);
@@ -325,11 +327,6 @@ const ErdCanvas = () => {
 
         return initEffectOfMouseCursorOnCanvas(editMode, erdCanvas);
     }, [editMode]);
-
-    // 初回表示時に Canvas の中央にスクロール
-    React.useLayoutEffect(() => {
-        window.scrollTo(window.innerWidth / 2, window.innerHeight / 2);
-    }, []);
 
     // ウィンドウサイズ変更の成魚を window に登録
     React.useLayoutEffect(() => initEffectOfWindowResize(viewport), [viewport]);
@@ -372,10 +369,10 @@ const ErdCanvas = () => {
             console.info("ErdCanvas: External document change has been applied.");
         };
 
-        window.addEventListener("externalDocumentChanged", handleExternalDocumentChange);
+        window.addEventListener(EventName.EXTERNAL_DOCUMENT_CHANGED, handleExternalDocumentChange);
 
         return () => {
-            window.removeEventListener("externalDocumentChanged", handleExternalDocumentChange);
+            window.removeEventListener(EventName.EXTERNAL_DOCUMENT_CHANGED, handleExternalDocumentChange);
         };
     }, [documentsHolder]);
 
@@ -395,7 +392,7 @@ const ErdCanvas = () => {
 
                 {backMemoViews}
 
-                <svg style={svgStyle}>
+                <svg style={svgStyle} data-role="erd-relation-svg">
                     {/* リレーションの線の定義 */}
                     {initRelationCardinalityDefinitions()}
                     {svgPaths}
@@ -767,12 +764,12 @@ const initRectangleWithoutScale = (element: Element, erdCanvas: HTMLDivElement, 
     const canvasCenterY = canvasAbsoluteTop + canvasRect.height / 2;
 
     // Canvas の中心からの相対位置（transform適用後のピクセル値）
-    const relativeToCenterX = elementAbsoluteLeft - canvasCenterX;
-    const relativeToCenterY = elementAbsoluteTop - canvasCenterY;
+    const relativeLeftToCenter = elementAbsoluteLeft - canvasCenterX;
+    const relativeTopToCenter = elementAbsoluteTop - canvasCenterY;
 
     return new RectangleViewModel({
-        positionX: relativeToCenterX / displayScale + center.x,
-        positionY: relativeToCenterY / displayScale + center.y,
+        positionX: relativeLeftToCenter / displayScale + center.x,
+        positionY: relativeTopToCenter / displayScale + center.y,
         width: elementRect.width / displayScale,
         height: elementRect.height / displayScale
     });

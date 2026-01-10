@@ -262,6 +262,10 @@ const StickyMemoView = ({
     }, [isTextEdit]);
 
     const zIndex = (selected: boolean) => {
+        if (isTextEdit) {
+            return 100;
+        }
+
         if (foreground) {
             return selected ? 100 : "auto";
         }

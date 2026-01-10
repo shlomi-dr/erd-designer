@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as cheerio from 'cheerio';
 import { DocumentResource } from '~/extension/DocumentResource';
 import { RectangleType } from '~/extension/mcpserver/DocumentBudget';
+import VsCodeMessage from '~/config/VsCodeMessage';
 
 export class ExtensionProvider implements vscode.CustomTextEditorProvider {
 
@@ -42,16 +43,16 @@ const handleResolvingTextEditor = (
         if (!("eventSource" in message) || !("messageType" in message)) {
             return;
         }
-        if (message.eventSource !== "erd-designer") {
+        if (message.eventSource !== VsCodeMessage.EVENT_SOURCE) {
             return;
         }
 
-        if (message.messageType === "ready") {
+        if (message.messageType === VsCodeMessage.READY) {
             const handleChangeView = (updating: string) => {
                 // 自身の操作以外で更新された場合は WebView に変更を通知する
                 webviewPanel.webview.postMessage({
-                    eventSource: "erd-designer",
-                    messageType: "changeDocument",
+                    eventSource: VsCodeMessage.EVENT_SOURCE,
+                    messageType: VsCodeMessage.EXTERNALY_CHANGED_DOCUMENT,
                     documentUri: documentUri,
                     jsonContext: updating
                 });
@@ -60,8 +61,8 @@ const handleResolvingTextEditor = (
 
             // React アプリケーションの準備が完了してから、ファイルの内容を React アプリケーションに渡す
             webviewPanel.webview.postMessage({
-                eventSource: "erd-designer",
-                messageType: "init",
+                eventSource: VsCodeMessage.EVENT_SOURCE,
+                messageType: VsCodeMessage.INITIALIZE_DOCUMENT,
                 documentUri: documentUri,
                 jsonContext: jsonContent
             });
@@ -79,18 +80,21 @@ const handleResolvingTextEditor = (
         }
 
         // 描画処理更新の反映
-        if (message.messageType === "drawnRectangles") {
+        if (message.messageType === VsCodeMessage.DRAWN_RECTANGLES) {
             if (!("rectangles" in message)) {
                 return;
             }
 
             const rectangles = message.rectangles as { tableId: string; rectangle: RectangleType }[];
-            documentResource.updateDrawnRectangles(textDocument, rectangles);
+            if (rectangles.length > 0) {
+                documentResource.updateDrawnRectangles(textDocument, rectangles);
+            }
+
             return;
         }
 
         // 保存処理の実行
-        if (message.messageType === "save") {
+        if (message.messageType === VsCodeMessage.SAVE_DOCUMENT) {
             if (!("erdDocument" in message)) {
                 return;
             }
