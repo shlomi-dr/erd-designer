@@ -815,7 +815,13 @@ const initEffectOfWindowResize = (viewport: Viewport) => {
 
 const initEffectOfScrollOnCanvas = (viewport: Viewport) => {
     const handleWheelMoving = (event: WheelEvent) => {
-        if (event.ctrlKey) {
+        if (event.metaKey || event.ctrlKey) {
+            return;
+        }
+
+        // ダイアログが表示されているときはホイール操作を無視する
+        const isDialogShowing = isShowingDialog();
+        if (isDialogShowing) {
             return;
         }
 
@@ -846,15 +852,26 @@ type KeyEventHandler = {
     handle: () => boolean
 };
 
+/**
+ * MUI のダイアログが表示中かどうかを判定する。
+ * 
+ * @returns ダイアログが表示中であれば true
+ */
+const isShowingDialog = () => {
+    // MEMO : DOM 要素を直接みているため、MUI のバージョン変更時には修正が必要に可能性がある
+    const dialogs = window.document.querySelectorAll('[role="dialog"]');
+    const backdrops = window.document.querySelectorAll('.MuiBackdrop-root');
+
+    return (dialogs.length > 0) || (backdrops.length > 0);
+};
+
 const initEffectOfKeyDownOnCanvas = (handlers: KeyEventHandler[]) => {
 
     const handleKeyUpOnCanvas = (event: KeyboardEvent) => {
 
         // ダイアログが表示されているときはキー操作を無視する
-        // DOM 要素を直接みているため、MUI のバージョン変更時には修正が必要に可能性がある
-        const dialogs = window.document.querySelectorAll('[role="dialog"]');
-        const backdrops = window.document.querySelectorAll('.MuiBackdrop-root');
-        if ((dialogs.length > 0) || (backdrops.length > 0)) {
+        const isDialogShowing = isShowingDialog();
+        if (isDialogShowing) {
             return;
         }
 
