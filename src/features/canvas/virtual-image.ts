@@ -85,6 +85,7 @@ export const initVirtualImageContainer = (
         }
     });
 
+    virtualCanvas.style.transform = "scale(1)";
     virtualCanvas.style.position = "absolute";
     virtualCanvas.style.top = "0";
     virtualCanvas.style.left = "0";
